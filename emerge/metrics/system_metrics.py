@@ -13,6 +13,7 @@ from emerge.network import asset_metrics
 def _get_unimpacted_buses(graph: nx.Graph, impacted_edges: list[str], source_bus: str):
     """Internal function to return unimpacted buses."""
 
+    impacted_edges = [el.lower() for el in impacted_edges]
     graph_copy = nx.Graph()
     edge_to_be_removed = []
     for edge in graph.edges():
