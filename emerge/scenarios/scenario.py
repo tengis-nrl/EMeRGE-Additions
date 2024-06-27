@@ -199,9 +199,9 @@ def generate_scenarios(config_data: data_model.DERScenarioConfigModel) -> None:
     for der_scen in config_data.der_scenario:
         simulator = opendss.OpenDSSSimulator(config_data.master_file)
         list_of_customers = dss_util.get_list_of_customer_models(
-            simulator.dss_instance, 1, cust_type=config_data.opendss_attr
+            1, cust_type=config_data.opendss_attr
         )
-        mapper_object = dss_util.get_load_mapper_objects(simulator.dss_instance)
+        mapper_object = dss_util.get_load_mapper_objects()
 
         derscenarios = create_der_scenarios(
             list_of_customers,

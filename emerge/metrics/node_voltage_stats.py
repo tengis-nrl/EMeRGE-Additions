@@ -20,8 +20,8 @@ class NodeVoltageTimeSeries(observer.MetricObserver):
     def compute(self) -> None:
         df = powerflow_results.get_voltage_dataframe()
         if not self.metrics:
-            self.metrics = {busname: [] for busname in df.index}
-        for key, value in df.to_dict()["voltage(pu)"].items():
+            self.metrics = {busname: [] for busname in df["busname"]}
+        for key, value in dict(zip(df["busname"], df["voltage(pu)"])).items():
             self.metrics[key].append(value)
 
     def get_metric(self) -> dict:

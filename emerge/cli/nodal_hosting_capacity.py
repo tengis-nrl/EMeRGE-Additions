@@ -40,6 +40,7 @@ from emerge.metrics.system_metrics import (
     TotalPVGeneration,
 )
 from emerge.simulator.simulation_manager import OpenDSSSimulationManager
+import opendssdirect as odd
 
 
 class BasicSimulationSettings(BaseModel):
@@ -95,7 +96,7 @@ class NodalHostingCapacityReport:
             self.solar_generation,
             self.ol_lines,
             self.circuit_energy,
-            self.export_energy,
+            # self.export_energy
         ]:
             self.subject.attach(obs)
 
@@ -154,9 +155,14 @@ def compute_hosting_capacity(
         bus_kv = round(opendss_instance.dss_instance.Bus.kVBase() * math.sqrt(3), 2)
         pv_name = f"{bus}_pv"
 
+        odd.Circuit.SetActiveBus(bus)
+        nodes = odd.Bus.Nodes()
+        if 0 in nodes:
+            raise Exception(f"Invalid Nodes; Phases will be incorrect, {nodes=}")
+        phases_string = "."+".".join([str(el) for el in nodes])
         new_pv = (
-            f"new PVSystem.{pv_name} bus1={bus} kv={round(bus_kv,2 )} "
-            + f"phases=3 kVA={capacity} Pmpp={capacity} PF=1.0 yearly={pv_profile}"
+            f"new PVSystem.{pv_name} bus1={bus+phases_string} kv={round(bus_kv,2 )} "
+            + f"phases={len(nodes)} kVA={capacity} Pmpp={capacity} PF=1.0 yearly={pv_profile}"
         )
         logger.info(new_pv)
 
