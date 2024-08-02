@@ -94,7 +94,7 @@ class NodalHostingCapacityReport:
             self.solar_generation,
             self.ol_lines,
             self.circuit_energy,
-            self.export_energy,
+            # self.export_energy
         ]:
             self.subject.attach(obs)
 
