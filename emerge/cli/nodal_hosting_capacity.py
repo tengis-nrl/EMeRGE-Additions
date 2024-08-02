@@ -232,7 +232,7 @@ def compute_hosting_capacity(
 
     # Make sure that min capacity is valid (a necessary assumption for binary search)
     report_instance = _attempt_pv_instance(min_capacity)
-    if report_instance.is_hosting_capacity_reached > 0:
+    if report_instance.is_hosting_capacity_reached() > 0:
         raise Exception("min_kw is an invalid hosting capacity. Lower it and rerun.")
     
     # Only ever set hosting_capacity to values that have been shown to work
