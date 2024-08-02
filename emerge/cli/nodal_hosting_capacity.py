@@ -42,7 +42,6 @@ from emerge.metrics.system_metrics import (
 from emerge.simulator.simulation_manager import OpenDSSSimulationManager
 import opendssdirect as odd
 
-
 class BasicSimulationSettings(BaseModel):
     """Interface for basic simulation settings."""
 
@@ -58,10 +57,9 @@ class BasicSimulationSettings(BaseModel):
 class SingleNodeHostingCapacityInput(BasicSimulationSettings):
     """Interface for single node hosting capacity."""
 
-    step_kw: Annotated[
-        float, Field(gt=0, description="kW value to increase pv capacity by each time.")
-    ]
     max_kw: Annotated[float, Field(gt=0, description="Maximum kw to not exceed.")]
+    min_kw: Annotated[float, Field(gt=0, description="Value to start search at.")]
+    resolution_kw: Annotated[float, Field(gt=0, description="Resolution to find hosting capacity.")]
 
 
 class MultiNodeHostingCapacityInput(SingleNodeHostingCapacityInput):
@@ -146,10 +144,9 @@ def compute_hosting_capacity(
     config: SingleNodeHostingCapacityInput, bus: str, pv_profile: str, sqlite_file: Path
 ):
     """Function to compute node hosting capacity."""
-    hosting_capacity = 0
-    engine = get_engine(sqlite_file)
 
-    for capacity in np.arange(config.step_kw, config.max_kw, config.step_kw):
+    def _attempt_pv_instance(attempted_capacity):
+        engine = get_engine(sqlite_file)
         opendss_instance = opendss.OpenDSSSimulator(config.master_dss_file)
         opendss_instance.dss_instance.Circuit.SetActiveBus(bus)
         bus_kv = round(opendss_instance.dss_instance.Bus.kVBase() * math.sqrt(3), 2)
@@ -162,7 +159,7 @@ def compute_hosting_capacity(
         phases_string = "."+".".join([str(el) for el in nodes])
         new_pv = (
             f"new PVSystem.{pv_name} bus1={bus+phases_string} kv={round(bus_kv,2 )} "
-            + f"phases={len(nodes)} kVA={capacity} Pmpp={capacity} PF=1.0 yearly={pv_profile}"
+            + f"phases={len(nodes)} kVA={attempted_capacity} Pmpp={attempted_capacity} PF=1.0 yearly={pv_profile}"
         )
         logger.info(new_pv)
 
@@ -179,13 +176,14 @@ def compute_hosting_capacity(
         )
 
         report_instance = NodalHostingCapacityReport()
-        logger.info(f"Node started {bus}, capacity {capacity}")
+        logger.info(f"Node started {bus}, capacity {attempted_capacity}")
 
         start_time = time.time()
         sim_manager.simulate(subject=report_instance.get_subject())
         end_time = time.time()
         logger.info(f"Node finished {bus}, " f"elpased time {end_time - start_time} seconds")
 
+        # Handle results in sqlite
         with Session(engine) as session:
             for timestamp, conv_ in zip(
                 sim_manager.convergence_dict["datetime"],
@@ -193,20 +191,20 @@ def compute_hosting_capacity(
             ):
                 session.add(
                     SimulationConvergenceReport(
-                        node_name=bus, convergence=conv_, capacity_kw=capacity, timestamp=timestamp
+                        node_name=bus, convergence=conv_, capacity_kw=attempted_capacity, timestamp=timestamp
                     )
                 )
 
             session.add(
                 SimulationTime(
-                    node_name=bus, capacity=capacity, compute_sec=(end_time - start_time)
+                    node_name=bus, capacity=attempted_capacity, compute_sec=(end_time - start_time)
                 )
             )
 
             session.add(
                 TotalEnergyReport(
                     node_name=bus,
-                    pv_capacity_kw=capacity,
+                    pv_capacity_kw=attempted_capacity,
                     pv_energy_mwh=report_instance.get_solar_total_energy(),
                     circuit_energy_mwh=report_instance.get_circuit_total_energy(),
                 )
@@ -225,11 +223,33 @@ def compute_hosting_capacity(
 
             session.commit()
 
+        return report_instance
+    
+    max_capacity = config.max_kw
+    min_capacity = config.min_kw
+    capacity = (min_capacity + max_capacity)/2
+    report_instance = None
+
+    # Make sure that min capacity is valid (a necessary assumption for binary search)
+    report_instance = _attempt_pv_instance(min_capacity)
+    if report_instance.is_hosting_capacity_reached > 0:
+        raise Exception("min_kw is an invalid hosting capacity. Lower it and rerun.")
+    
+    # Only ever set hosting_capacity to values that have been shown to work
+    hosting_capacity = min_capacity 
+
+    # Run binary search
+    while (max_capacity - min_capacity)/2 > config.resolution_kw:
+        capacity = (max_capacity + min_capacity) / 2
+        report_instance = _attempt_pv_instance(capacity)
         if report_instance.is_hosting_capacity_reached() > 0:
-            break
+            # failed, change upper bound
+            max_capacity = capacity
+        else:
+            hosting_capacity = capacity
+            min_capacity = capacity
 
-        hosting_capacity = capacity
-
+    engine = get_engine(sqlite_file)
     with Session(engine) as session:
         session.add(
             HostingCapacityReport(
@@ -241,6 +261,7 @@ def compute_hosting_capacity(
             )
         )
         session.commit()
+
 
 
 @click.command()
