@@ -56,6 +56,7 @@ class BasicSimulationSettings(BaseModel):
 
 class SingleNodeHostingCapacityInput(BasicSimulationSettings):
     """Interface for single node hosting capacity."""
+    start_kw: Annotated[float, Field(gt=0, description="Maximum kw to not exceed.")]
     step_kw: Annotated[
         float, Field(gt=0, description="kW value to increase pv capacity by each time.")
     ]
@@ -146,7 +147,7 @@ def compute_hosting_capacity(
     hosting_capacity = 0
     engine = get_engine(sqlite_file)
 
-    for capacity in np.arange(config.step_kw, config.max_kw, config.step_kw):
+    for capacity in np.arange(config.start_kw, config.max_kw, config.step_kw):
         opendss_instance = opendss.OpenDSSSimulator(config.master_dss_file)
         opendss_instance.dss_instance.Circuit.SetActiveBus(bus)
         bus_kv = round(opendss_instance.dss_instance.Bus.kVBase() * math.sqrt(3), 2)
