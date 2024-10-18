@@ -13,6 +13,21 @@ from emerge.simulator import powerflow_results
 def get_line_loading_df():
     return powerflow_results.get_loading_dataframe()
 
+class LineLoadingTimeSeries(observer.MetricObserver):
+    def __init__(self):
+        self.metrics = {}
+
+    def compute(self) -> None:
+        df = powerflow_results.get_loading_dataframe()
+        loading_dict = dict(zip(df["branch"], df["loading(pu)"]))
+        if len(self.metrics) == 0:
+            self.metrics = {key: [] for key in loading_dict}
+
+        for line, metric in loading_dict.items():
+            self.metrics[line].append(metric)
+
+    def get_metric(self) -> dict:
+        return self.metrics
 
 class OverloadedLines(observer.MetricObserver):
     """Class for computing time series loading metrics for lines."""

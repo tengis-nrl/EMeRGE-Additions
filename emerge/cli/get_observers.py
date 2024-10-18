@@ -16,6 +16,7 @@ CLASS_MAPPER = {
     "node_timeseries_voltage": node_voltage_stats.NodeVoltageTimeSeries,
     "node_voltage_stats": node_voltage_stats.NodeVoltageStats,
     "node_voltage_bins": node_voltage_stats.NodeVoltageBins,
+    "line_timeseries_loading": line_loading_stats.LineLoadingTimeSeries,
     "line_loading_stats": line_loading_stats.LineLoadingStats,
     "line_loading_bins": line_loading_stats.LineLoadingBins,
     "overloaded_lines": line_loading_stats.OverloadedLines,
@@ -62,6 +63,13 @@ class SimulationMetrics(BaseModel):
                 args=[[0.95, 0.96, 0.97, 0.98, 0.99, 1.0, 1.01, 1.02, 1.03, 1.04, 1.05]],
             ),
             description="Distribution for node voltages.",
+        ),
+    ]
+    line_timeseries_loading: Annotated[
+        MetricEntry,
+        Field(
+            MetricEntry(file_name="line_loading_timeseries.csv"),
+            description="Statistics for line time series loadings.",
         ),
     ]
     line_loading_stats: Annotated[
