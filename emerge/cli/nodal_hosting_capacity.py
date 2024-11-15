@@ -56,7 +56,7 @@ class BasicSimulationSettings(BaseModel):
 
 class SingleNodeHostingCapacityInput(BasicSimulationSettings):
     """Interface for single node hosting capacity."""
-    start_kw: Annotated[float, Field(gt=0, description="Maximum kw to not exceed.")]
+    start_kw: Annotated[float, Field(gt=0, description="Starting kw value for the computation.")]
     step_kw: Annotated[
         float, Field(gt=0, description="kW value to increase pv capacity by each time.")
     ]
