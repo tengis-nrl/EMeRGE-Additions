@@ -7,7 +7,7 @@ name = "NREL-emerge"
 version = "2.0.0"
 description = "Emerging technologies Management and Risk evaluation on distributions Grid Evolution"
 readme = "README.md"
-license = ""
+license = { text = "MIT" }
 requires-python = ">=3.11"
 authors = [
     { name = "Kapil Duwadi", email = "kapil.duwadi@nrel.gov" },
